@@ -1,12 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import { useCompletion } from "ai/react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Copy, Download, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Sparkles, Copy, Download, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+
+// Hook custom — remplace useCompletion de ai/react
+function useCompletion(apiPath: string) {
+  const [completion, setCompletion] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const complete = useCallback(async (body: object) => {
+    setIsLoading(true);
+    setCompletion("");
+    setError(null);
+
+    try {
+      const res = await fetch(apiPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erreur lors de la génération");
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("Streaming non supporté");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setCompletion(prev => prev + decoder.decode(value, { stream: true }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Erreur inconnue"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiPath]);
+
+  return { completion, complete, isLoading, error };
+}
 
 export default function GeneratePage() {
   const [formData, setFormData] = useState({
@@ -16,22 +57,20 @@ export default function GeneratePage() {
     audience: "",
     platform: "Shopify",
     tone: "Professionnel",
-    language: "FR"
+    language: "FR",
   });
-  
-  const [copied, setCopied] = useState(false);
 
-  const { completion, complete, isLoading, error } = useCompletion({
-    api: "/api/generate",
-    onError: (err) => alert(err.message),
-  });
+  const [copied, setCopied] = useState(false);
+  const { completion, complete, isLoading, error } = useCompletion("/api/generate");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await complete("", { body: formData });
+    await complete(formData);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -61,7 +100,9 @@ export default function GeneratePage() {
     <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
       <div className="mb-8">
         <h1 className="text-3xl font-display font-bold mb-2">Générateur intelligent</h1>
-        <p className="text-text-secondary">Remplissez les informations ci-dessous pour créer votre fiche produit.</p>
+        <p className="text-text-secondary">
+          Remplissez les informations ci-dessous pour créer votre fiche produit.
+        </p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
@@ -70,46 +111,80 @@ export default function GeneratePage() {
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Nom du produit <span className="text-red-400">*</span></label>
-                <Input name="productName" value={formData.productName} onChange={handleChange} placeholder="Ex: Montre Nova Pro" required />
+                <label className="text-sm font-medium">
+                  Nom du produit <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  name="productName"
+                  value={formData.productName}
+                  onChange={handleChange}
+                  placeholder="Ex: Montre Nova Pro"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Catégorie <span className="text-red-400">*</span></label>
-                <select name="category" value={formData.category} onChange={handleChange} className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent">
-                  {["Mode", "Électronique", "Maison", "Beauté", "Sport", "Autre"].map(c => <option key={c} value={c}>{c}</option>)}
+                <label className="text-sm font-medium">
+                  Catégorie <span className="text-red-400">*</span>
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                >
+                  {["Mode", "Électronique", "Maison", "Beauté", "Sport", "Autre"].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Caractéristiques clés</label>
-                <Textarea 
-                  name="features" 
-                  value={formData.features} 
-                  onChange={handleChange} 
-                  placeholder="Appuyez sur Entrée pour séparer les points. Ex: 
-- Autonomie 24h
-- Étanche IP68" 
+                <Textarea
+                  name="features"
+                  value={formData.features}
+                  onChange={handleChange}
+                  placeholder={"Appuyez sur Entrée pour séparer les points. Ex:\n- Autonomie 24h\n- Étanche IP68"}
                   className="h-32"
                 />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Public cible</label>
-                <Input name="audience" value={formData.audience} onChange={handleChange} placeholder="Ex: Femmes 25-40 ans actives" />
+                <Input
+                  name="audience"
+                  value={formData.audience}
+                  onChange={handleChange}
+                  placeholder="Ex: Femmes 25-40 ans actives"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Plateforme</label>
-                  <select name="platform" value={formData.platform} onChange={handleChange} className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent">
-                    {["Shopify", "WooCommerce", "Générique"].map(p => <option key={p} value={p}>{p}</option>)}
+                  <select
+                    name="platform"
+                    value={formData.platform}
+                    onChange={handleChange}
+                    className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                  >
+                    {["Shopify", "WooCommerce", "Générique"].map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Langue</label>
-                  <select name="language" value={formData.language} onChange={handleChange} className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent">
-                    {["FR", "EN", "ES", "DE"].map(l => <option key={l} value={l}>{l}</option>)}
+                  <select
+                    name="language"
+                    value={formData.language}
+                    onChange={handleChange}
+                    className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                  >
+                    {["FR", "EN", "ES", "DE"].map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -122,11 +197,10 @@ export default function GeneratePage() {
                       key={t}
                       type="button"
                       onClick={() => handleToneChange(t)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                        formData.tone === t 
-                          ? "bg-accent/20 border-accent text-accent" 
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${formData.tone === t
+                          ? "bg-accent/20 border-accent text-accent"
                           : "bg-surface border-border text-text-secondary hover:border-border-strong hover:text-text-primary"
-                      }`}
+                        }`}
                     >
                       {t}
                     </button>
@@ -134,13 +208,19 @@ export default function GeneratePage() {
                 </div>
               </div>
 
-               {error && (
-                 <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                   {error.message}
-                 </div>
-               )}
+              {error && (
+                <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {error.message}
+                </div>
+              )}
 
-              <Button type="submit" variant="primary" className="w-full h-12 text-base" isLoading={isLoading} disabled={!formData.productName}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full h-12 text-base"
+                isLoading={isLoading}
+                disabled={!formData.productName || isLoading}
+              >
                 Générer (consomme 1 crédit) <Sparkles className="w-4 h-4 ml-2" />
               </Button>
             </form>
@@ -152,11 +232,26 @@ export default function GeneratePage() {
           <div className="p-4 border-b border-border bg-surface/50 flex items-center justify-between">
             <h3 className="font-semibold text-sm">Aperçu du résultat</h3>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" onClick={handleDownload} disabled={!completion || isLoading}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleDownload}
+                disabled={!completion || isLoading}
+              >
                 <Download className="w-4 h-4 mr-2" /> .TXT
               </Button>
-              <Button size="sm" variant="outline" onClick={handleCopy} disabled={!completion || isLoading} className="w-24">
-                {copied ? <CheckCircle2 className="w-4 h-4 text-success transition-all scale-110" /> : <><Copy className="w-4 h-4 mr-2" /> Copier</>}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopy}
+                disabled={!completion || isLoading}
+                className="w-24"
+              >
+                {copied ? (
+                  <CheckCircle2 className="w-4 h-4 text-success transition-all scale-110" />
+                ) : (
+                  <><Copy className="w-4 h-4 mr-2" /> Copier</>
+                )}
               </Button>
             </div>
           </div>
@@ -168,7 +263,9 @@ export default function GeneratePage() {
                 <p className="text-xs mt-2">Prêt à attirer de nouveaux clients ?</p>
               </div>
             )}
-            {isLoading && <span className="animate-pulse inline-block w-2 h-4 bg-accent ml-1 -mb-1" />}
+            {isLoading && (
+              <span className="animate-pulse inline-block w-2 h-4 bg-accent ml-1 -mb-1" />
+            )}
           </div>
         </Card>
       </div>
