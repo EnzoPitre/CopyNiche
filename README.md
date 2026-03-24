@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CopyNiche - AI SaaS for E-commerce Copywriting
 
-## Getting Started
+CopyNiche est un micro-SaaS générateur de fiches produits propulsé par l'IA (Claude Sonnet), conçu pour les e-commerçants Shopify et WooCommerce. Fonctionnalités de streaming, freemium, paiements Stripe et interface premium.
 
-First, run the development server:
+## 🚀 Fonctionnalités
+- **Génération IA en temps réel** : Prompt avancé basé sur AIDA et les biais cognitifs.
+- **Authentification** : NextAuth v5 avec Google Provider et Magic Links (Resend).
+- **Base de données** : PostgreSQL + Prisma ORM.
+- **Paiements** : Stripe Checkout (One-time payment).
+- **Design System** : Custom TailwindCSS, thématique Dark Premium.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 📦 Stack Technique
+- Next.js 14 (App Router)
+- TypeScript Strict
+- Tailwind CSS
+- Prisma (v5)
+- Anthropic SDK & Vercel AI SDK
+- Stripe
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠 Installation Locale
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Cloner le projet**
+   \`\`\`bash
+   git clone <repo>
+   cd copyniche
+   \`\`\`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Installer les dépendances**
+   \`\`\`bash
+   npm install
+   \`\`\`
 
-## Learn More
+3. **Variables d'environnement**
+   Copiez le fichier \`.env.example\` vers \`.env\` et remplissez les valeurs.
+   \`\`\`bash
+   cp .env.example .env
+   \`\`\`
 
-To learn more about Next.js, take a look at the following resources:
+4. **Base de données**
+   Assurez-vous d'avoir une instance PostgreSQL qui tourne et renseignez l'URL dans `.env`.
+   Ensuite, synchronisez le schéma :
+   \`\`\`bash
+   npx prisma db push
+   npx prisma generate
+   \`\`\`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. **Lancer le serveur de développement**
+   \`\`\`bash
+   npm run dev
+   \`\`\`
+   L'application tourne sur \`http://localhost:3000\`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 💳 Configuration Stripe
+Pour tester les paiements en dev :
+1. Créez des produits `Starter` et `Pro` en mode One-Time.
+2. Récupérez les IDs des Price (ex: `price_xxxxxxxx`).
+3. Renseignez-les dans le `.env`.
+4. Écoutez les webhooks localement avec le Stripe CLI :
+   \`\`\`bash
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+   \`\`\`
+   Récupérez le secret du webhook fourni par le terminal et ajoutez-le dans `.env`.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🌍 Déploiement Vercel
+Le projet est prêt pour Vercel. 
+1. Poussez votre code sur GitHub.
+2. Importez le projet dans Vercel.
+3. Ajoutez toutes les variables d'environnement dans les settings Vercel.
+4. Assurez-vous d'avoir ajouté l'addon Vercel Postgres ou une base externe (Supabase/Neon).
+Le fichier `vercel.json` étend le `maxDuration` de l'API de génération à 60s pour palier aux descriptions longues.

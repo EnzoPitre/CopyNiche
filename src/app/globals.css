@@ -2,26 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg-base: #0A0A0A;
+    --bg-surface: #111111;
+    --bg-elevated: #1A1A1A;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.15);
+    --text-primary: #F5F5F5;
+    --text-secondary: #888888;
+    --text-muted: #555555;
+    --accent: #6366F1;
+    --accent-hover: #818CF8;
+    --accent-glow: rgba(99,102,241,0.3);
+    --success: #10B981;
+    --warning: #F59E0B;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, #ffffff, #a3a3a3);
+  }
+  .accent-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(to bottom right, var(--accent), #a5b4fc);
+  }
+  .glass {
+    @apply bg-surface/50 backdrop-blur-md border border-white/5;
+  }
+  .glass-card {
+    @apply bg-surface border border-white/5 rounded-2xl shadow-card transition-all hover:border-white/10;
   }
 }
